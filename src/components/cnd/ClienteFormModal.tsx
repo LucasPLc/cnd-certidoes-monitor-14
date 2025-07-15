@@ -26,7 +26,16 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     nome: '',
     email: '',
     telefone: '',
-    cnpj: ''
+    cnpj: '',
+    periodicidade: 30,
+    statusCliente: 'Ativo',
+    nacional: true,
+    municipal: false,
+    estadual: false,
+    empresa: {
+      nomeEmpresa: '',
+      cnpj: ''
+    }
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -68,12 +77,25 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       newErrors.telefone = 'Telefone é obrigatório';
     }
 
-    // CNPJ validation (basic format check)
-    if (formData.cnpj && formData.cnpj.length > 0) {
-      const cnpjClean = formData.cnpj.replace(/\D/g, '');
+    if (!formData.empresa.nomeEmpresa.trim()) {
+      newErrors['empresa.nomeEmpresa'] = 'Nome da empresa é obrigatório';
+    }
+
+    if (!formData.empresa.cnpj.trim()) {
+      newErrors['empresa.cnpj'] = 'CNPJ da empresa é obrigatório';
+    } else {
+      const cnpjClean = formData.empresa.cnpj.replace(/\D/g, '');
       if (cnpjClean.length !== 14) {
-        newErrors.cnpj = 'CNPJ deve ter 14 dígitos';
+        newErrors['empresa.cnpj'] = 'CNPJ da empresa deve ter 14 dígitos';
       }
+    }
+
+    if (!formData.periodicidade) {
+      newErrors.periodicidade = 'Periodicidade é obrigatória';
+    }
+
+    if (!formData.statusCliente.trim()) {
+      newErrors.statusCliente = 'Status é obrigatório';
     }
 
     setErrors(newErrors);
@@ -87,17 +109,38 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       return;
     }
 
+    const { nome, email, telefone, ...rest } = formData;
+
+    const clienteParaEnviar = {
+      ...rest,
+      empresa: {
+        nomeEmpresa: formData.empresa.nomeEmpresa,
+        cnpj: formData.empresa.cnpj
+      }
+    };
+
     try {
-      await onSubmit(formData);
+      await onSubmit(clienteParaEnviar);
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
     }
   };
 
-  const handleInputChange = (field: keyof CreateClienteDto, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
+  const handleInputChange = (field: keyof CreateClienteDto | 'empresa.nomeEmpresa' | 'empresa.cnpj', value: string | boolean) => {
+    if (field.startsWith('empresa.')) {
+      const empresaField = field.split('.')[1] as keyof CreateClienteDto['empresa'];
+      setFormData(prev => ({
+        ...prev,
+        empresa: {
+          ...prev.empresa,
+          [empresaField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -182,20 +225,111 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cnpj" className="text-primary font-medium">
-              CNPJ
+            <Label htmlFor="empresa.nomeEmpresa" className="text-primary font-medium">
+              Nome da Empresa *
             </Label>
             <Input
-              id="cnpj"
-              value={formData.cnpj}
-              onChange={(e) => handleInputChange('cnpj', formatCNPJ(e.target.value))}
-              placeholder="00.000.000/0000-00"
-              className={`transition-all ${errors.cnpj ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
+              id="empresa.nomeEmpresa"
+              value={formData.empresa.nomeEmpresa}
+              onChange={(e) => handleInputChange('empresa.nomeEmpresa', e.target.value)}
+              placeholder="Digite o nome da empresa"
+              className={`transition-all ${errors['empresa.nomeEmpresa'] ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
               disabled={isLoading}
             />
-            {errors.cnpj && (
-              <span className="text-xs text-destructive">{errors.cnpj}</span>
+            {errors['empresa.nomeEmpresa'] && (
+              <span className="text-xs text-destructive">{errors['empresa.nomeEmpresa']}</span>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="empresa.cnpj" className="text-primary font-medium">
+              CNPJ da Empresa *
+            </Label>
+            <Input
+              id="empresa.cnpj"
+              value={formData.empresa.cnpj}
+              onChange={(e) => handleInputChange('empresa.cnpj', formatCNPJ(e.target.value))}
+              placeholder="00.000.000/0000-00"
+              className={`transition-all ${errors['empresa.cnpj'] ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
+              disabled={isLoading}
+            />
+            {errors['empresa.cnpj'] && (
+              <span className="text-xs text-destructive">{errors['empresa.cnpj']}</span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="periodicidade" className="text-primary font-medium">
+              Periodicidade (dias) *
+            </Label>
+            <Input
+              id="periodicidade"
+              type="number"
+              value={formData.periodicidade}
+              onChange={(e) => handleInputChange('periodicidade', e.target.value)}
+              placeholder="30"
+              className={`transition-all ${errors.periodicidade ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
+              disabled={isLoading}
+            />
+            {errors.periodicidade && (
+              <span className="text-xs text-destructive">{errors.periodicidade}</span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="statusCliente" className="text-primary font-medium">
+              Status *
+            </Label>
+            <select
+              id="statusCliente"
+              value={formData.statusCliente}
+              onChange={(e) => handleInputChange('statusCliente', e.target.value)}
+              className={`transition-all w-full p-2 border rounded ${errors.statusCliente ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
+              disabled={isLoading}
+            >
+              <option value="Ativo">Ativo</option>
+              <option value="Inativo">Inativo</option>
+              <option value="Pendente">Pendente</option>
+            </select>
+            {errors.statusCliente && (
+              <span className="text-xs text-destructive">{errors.statusCliente}</span>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="nacional"
+                checked={formData.nacional}
+                onChange={(e) => handleInputChange('nacional', e.target.checked)}
+                className="h-4 w-4"
+                disabled={isLoading}
+              />
+              <Label htmlFor="nacional">Nacional</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="municipal"
+                checked={formData.municipal}
+                onChange={(e) => handleInputChange('municipal', e.target.checked)}
+                className="h-4 w-4"
+                disabled={isLoading}
+              />
+              <Label htmlFor="municipal">Municipal</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="estadual"
+                checked={formData.estadual}
+                onChange={(e) => handleInputChange('estadual', e.target.checked)}
+                className="h-4 w-4"
+                disabled={isLoading}
+              />
+              <Label htmlFor="estadual">Estadual</Label>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
