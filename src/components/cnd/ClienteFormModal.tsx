@@ -128,14 +128,14 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       municipal: formData.municipal,
       estadual: formData.estadual,
       empresa: {
-        idEmpresa: editingCliente && cliente && cliente.empresa ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
+        idEmpresa: cliente && cliente.empresa ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
         nomeEmpresa: formData.empresa.nomeEmpresa
       }
     };
 
     try {
       await onSubmit(clienteParaEnviar);
-      if (!editingCliente) {
+      if (!cliente) {
         setLastEmpresaId(lastEmpresaId + 1);
       }
       onClose();
