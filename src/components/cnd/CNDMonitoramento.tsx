@@ -30,6 +30,7 @@ export const CNDMonitoramento: React.FC = () => {
   const [searchNome, setSearchNome] = useState('');
   const [searchCNPJ, setSearchCNPJ] = useState('');
   const [selectedClientes, setSelectedClientes] = useState<Set<number>>(new Set());
+  const [lastEmpresaId, setLastEmpresaId] = useState(0);
   
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -444,6 +445,8 @@ export const CNDMonitoramento: React.FC = () => {
           onSubmit={handleFormSubmit}
           cliente={editingCliente}
           isLoading={formLoading}
+          lastEmpresaId={lastEmpresaId}
+          setLastEmpresaId={setLastEmpresaId}
         />
 
         <DeleteConfirmModal

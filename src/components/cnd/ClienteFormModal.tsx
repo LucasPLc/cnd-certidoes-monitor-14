@@ -13,6 +13,8 @@ interface ClienteFormModalProps {
   onSubmit: (cliente: CreateClienteDto) => Promise<void>;
   cliente?: Cliente | null;
   isLoading?: boolean;
+  lastEmpresaId: number;
+  setLastEmpresaId: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
@@ -20,7 +22,9 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   onClose,
   onSubmit,
   cliente,
-  isLoading = false
+  isLoading = false,
+  lastEmpresaId,
+  setLastEmpresaId,
 }) => {
   const [formData, setFormData] = useState<CreateClienteDto>({
     nome: '',
@@ -124,12 +128,16 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       municipal: formData.municipal,
       estadual: formData.estadual,
       empresa: {
+        idEmpresa: editingCliente ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
         nomeEmpresa: formData.empresa.nomeEmpresa
       }
     };
 
     try {
       await onSubmit(clienteParaEnviar);
+      if (!editingCliente) {
+        setLastEmpresaId(lastEmpresaId + 1);
+      }
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
