@@ -10,10 +10,16 @@ export interface Cliente {
 }
 
 export interface CreateClienteDto {
-  nome: string;
-  email: string;
-  telefone: string;
-  cnpj?: string;
+  cnpj: string;
+  periodicidade: number;
+  statusCliente: string;
+  nacional: boolean;
+  municipal: boolean;
+  estadual: boolean;
+  empresa: {
+    nomeEmpresa: string;
+    cnpj: string;
+  };
 }
 
 export interface UpdateClienteDto extends CreateClienteDto {
