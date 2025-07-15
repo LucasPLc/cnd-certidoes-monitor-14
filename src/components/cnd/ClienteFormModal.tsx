@@ -116,11 +116,13 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       return;
     }
 
-    const { nome, email, telefone, cnpj, ...rest } = formData;
-
     const clienteParaEnviar = {
-      ...rest,
       cnpj: formData.empresa.cnpj,
+      periodicidade: formData.periodicidade,
+      statusCliente: formData.statusCliente,
+      nacional: formData.nacional,
+      municipal: formData.municipal,
+      estadual: formData.estadual,
       empresa: {
         nomeEmpresa: formData.empresa.nomeEmpresa
       }
