@@ -128,7 +128,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       municipal: formData.municipal,
       estadual: formData.estadual,
       empresa: {
-        idEmpresa: editingCliente ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
+        idEmpresa: editingCliente && cliente && cliente.empresa ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
         nomeEmpresa: formData.empresa.nomeEmpresa
       }
     };
