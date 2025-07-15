@@ -44,17 +44,24 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   useEffect(() => {
     if (cliente) {
       setFormData({
-        nome: cliente.nome,
-        email: cliente.email,
-        telefone: cliente.telefone,
-        cnpj: cliente.cnpj || ''
+        ...cliente,
+        empresa: cliente.empresa || { nomeEmpresa: '', cnpj: '' }
       });
     } else {
       setFormData({
         nome: '',
         email: '',
         telefone: '',
-        cnpj: ''
+        cnpj: '',
+        periodicidade: 30,
+        statusCliente: 'Ativo',
+        nacional: true,
+        municipal: false,
+        estadual: false,
+        empresa: {
+          nomeEmpresa: '',
+          cnpj: ''
+        }
       });
     }
     setErrors({});
