@@ -299,7 +299,11 @@ export const CNDMonitoramento: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4"><Badge variant="outline">{cliente.cnpj}</Badge></td>
-                        <td className="p-4"><Badge variant={cliente.statusCliente.toLowerCase() === 'ativo' ? 'default' : 'secondary'}>{cliente.statusCliente}</Badge></td>
+                        <td className="p-4">
+                          <Badge variant={cliente.statusCliente.toLowerCase() === 'ativo' ? 'default' : 'secondary'}>
+                            {cliente.statusCliente.charAt(0).toUpperCase() + cliente.statusCliente.slice(1)}
+                          </Badge>
+                        </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
                             {cliente.nacional && <Badge variant="outline" className="flex items-center"><CheckCircle className="w-3 h-3 mr-1 text-green-500"/>N</Badge>}

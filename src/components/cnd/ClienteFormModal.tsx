@@ -185,7 +185,11 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="statusCliente" className="text-primary font-medium">Status do Cliente *</Label>
-              <Input id="statusCliente" value={formData.statusCliente} onChange={(e) => handleInputChange('statusCliente', e.target.value)} placeholder="ativo" className={errors.statusCliente ? 'border-destructive' : ''} disabled={isLoading} />
+              <select id="statusCliente" value={formData.statusCliente} onChange={(e) => handleInputChange('statusCliente', e.target.value)} className={`w-full p-2 border rounded ${errors.statusCliente ? 'border-destructive' : 'border-input'}`} disabled={isLoading}>
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+                <option value="pendente">Pendente</option>
+              </select>
               {errors.statusCliente && <span className="text-xs text-destructive">{errors.statusCliente}</span>}
             </div>
           </div>
