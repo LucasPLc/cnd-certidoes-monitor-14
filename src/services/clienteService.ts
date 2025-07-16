@@ -48,8 +48,11 @@ class ClienteService {
   }
 
   // PUT /clientes/{idEmpresa} - Update existing cliente
-  async updateCliente(idEmpresa: string, cliente: UpdateClienteDto): Promise<Cliente> {
-    return this.fetchWithError(`${BASE_URL}/clientes/${idEmpresa}`, {
+  async updateCliente(cliente: UpdateClienteDto): Promise<Cliente> {
+    if (!cliente.empresa?.idEmpresa) {
+      throw new Error("idEmpresa is required for updating a cliente.");
+    }
+    return this.fetchWithError(`${BASE_URL}/clientes/${cliente.empresa.idEmpresa}`, {
       method: 'PUT',
       body: JSON.stringify(cliente),
     });

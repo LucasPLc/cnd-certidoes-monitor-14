@@ -121,23 +121,15 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     }
 
     const clienteParaEnviar = {
-      cnpj: formData.empresa.cnpj,
-      periodicidade: formData.periodicidade,
-      statusCliente: formData.statusCliente,
-      nacional: formData.nacional,
-      municipal: formData.municipal,
-      estadual: formData.estadual,
+      ...formData,
       empresa: {
-        idEmpresa: cliente && cliente.empresa ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
-        nomeEmpresa: formData.empresa.nomeEmpresa
-      }
+        ...formData.empresa,
+        idEmpresa: cliente ? cliente.empresa.idEmpresa : undefined,
+      },
     };
 
     try {
       await onSubmit(clienteParaEnviar);
-      if (!cliente) {
-        setLastEmpresaId(lastEmpresaId + 1);
-      }
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
