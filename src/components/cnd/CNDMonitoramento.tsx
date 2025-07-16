@@ -15,8 +15,8 @@ import {
   Users, 
   Loader2,
   Building2,
-  CheckCircle,
-  XCircle,
+  Phone,
+  Mail
 } from 'lucide-react';
 import { Cliente, CreateClienteDto } from '@/types/cliente';
 import { clienteService } from '@/services/clienteService';
@@ -27,9 +27,10 @@ export const CNDMonitoramento: React.FC = () => {
   // State management
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchEmpresa, setSearchEmpresa] = useState('');
+  const [searchNome, setSearchNome] = useState('');
   const [searchCNPJ, setSearchCNPJ] = useState('');
   const [selectedClientes, setSelectedClientes] = useState<Set<number>>(new Set());
+  const [lastEmpresaId, setLastEmpresaId] = useState(0);
   
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -53,10 +54,14 @@ export const CNDMonitoramento: React.FC = () => {
     } catch (error) {
       toast({
         title: "Erro ao carregar clientes",
-        description: "Não foi possível carregar a lista de clientes. Verifique a conexão com a API.",
+        description: "Não foi possível carregar a lista de clientes.",
         variant: "destructive",
       });
-      setClientes([]); // Start with an empty list on error
+      // Mock data for development/testing
+      setClientes([
+        { id: 1, nome: "Empresa ABC Ltda", email: "contato@empresaabc.com", telefone: "(11) 99999-9999", cnpj: "12.345.678/0001-90" },
+        { id: 2, nome: "Comércio XYZ S.A.", email: "admin@comercioxyz.com", telefone: "(11) 88888-8888", cnpj: "98.765.432/0001-10" },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -65,11 +70,11 @@ export const CNDMonitoramento: React.FC = () => {
   // Filtered clientes based on search
   const filteredClientes = useMemo(() => {
     return clientes.filter(cliente => {
-      const matchesEmpresa = cliente.empresa.nomeEmpresa.toLowerCase().includes(searchEmpresa.toLowerCase());
-      const matchesCNPJ = !searchCNPJ || cliente.cnpj.includes(searchCNPJ);
-      return matchesEmpresa && matchesCNPJ;
+      const matchesNome = cliente.nome.toLowerCase().includes(searchNome.toLowerCase());
+      const matchesCNPJ = !searchCNPJ || (cliente.cnpj && cliente.cnpj.includes(searchCNPJ));
+      return matchesNome && matchesCNPJ;
     });
-  }, [clientes, searchEmpresa, searchCNPJ]);
+  }, [clientes, searchNome, searchCNPJ]);
 
   // Handle form submission (create/update)
   const handleFormSubmit = async (formData: CreateClienteDto) => {
@@ -77,8 +82,11 @@ export const CNDMonitoramento: React.FC = () => {
       setFormLoading(true);
       
       if (editingCliente) {
-        // Update existing cliente
-        await clienteService.updateCliente(editingCliente.id, formData);
+        // A API de atualização usa o idEmpresa na URL
+        if (!formData.empresa || !formData.empresa.idEmpresa) {
+            throw new Error("ID da Empresa é necessário para a atualização.");
+        }
+        await clienteService.updateCliente(formData.empresa.idEmpresa, formData);
         toast({
           title: "Cliente atualizado",
           description: "Os dados do cliente foram atualizados com sucesso.",
@@ -95,10 +103,10 @@ export const CNDMonitoramento: React.FC = () => {
       await loadClientes();
       setIsFormModalOpen(false);
       setEditingCliente(null);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Erro ao salvar cliente",
-        description: error.message || "Não foi possível salvar os dados do cliente.",
+        description: "Não foi possível salvar os dados do cliente.",
         variant: "destructive",
       });
     } finally {
@@ -110,18 +118,18 @@ export const CNDMonitoramento: React.FC = () => {
   const handleDeleteConfirm = async () => {
     try {
       setDeleteLoading(true);
-      const idsToDelete = Array.from(selectedClientes);
       
-      if (idsToDelete.length > 1) {
+      if (selectedClientes.size > 1) {
         // Bulk delete
-        await clienteService.deleteMultipleClientes(idsToDelete);
+        await clienteService.deleteMultipleClientes(Array.from(selectedClientes));
         toast({
           title: "Clientes excluídos",
-          description: `${idsToDelete.length} cliente(s) foram excluídos com sucesso.`,
+          description: `${selectedClientes.size} cliente(s) foram excluídos com sucesso.`,
         });
       } else {
         // Single delete
-        await clienteService.deleteCliente(idsToDelete[0]);
+        const clienteId = Array.from(selectedClientes)[0];
+        await clienteService.deleteCliente(clienteId);
         toast({
           title: "Cliente excluído",
           description: "O cliente foi excluído com sucesso.",
@@ -130,11 +138,10 @@ export const CNDMonitoramento: React.FC = () => {
       
       await loadClientes();
       setSelectedClientes(new Set());
-      setIsDeleteModalOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Erro ao excluir cliente(s)",
-        description: error.message || "Não foi possível excluir o(s) cliente(s) selecionado(s).",
+        description: "Não foi possível excluir o(s) cliente(s) selecionado(s).",
         variant: "destructive",
       });
     } finally {
@@ -142,22 +149,33 @@ export const CNDMonitoramento: React.FC = () => {
     }
   };
 
+  // Handle individual checkbox selection
   const handleClienteSelect = (clienteId: number, checked: boolean) => {
     const newSelected = new Set(selectedClientes);
-    if (checked) newSelected.add(clienteId);
-    else newSelected.delete(clienteId);
+    if (checked) {
+      newSelected.add(clienteId);
+    } else {
+      newSelected.delete(clienteId);
+    }
     setSelectedClientes(newSelected);
   };
 
+  // Handle select all checkbox
   const handleSelectAll = (checked: boolean) => {
-    setSelectedClientes(checked ? new Set(filteredClientes.map(c => c.id)) : new Set());
+    if (checked) {
+      setSelectedClientes(new Set(filteredClientes.map(c => c.id)));
+    } else {
+      setSelectedClientes(new Set());
+    }
   };
 
+  // Open edit modal
   const handleEdit = (cliente: Cliente) => {
     setEditingCliente(cliente);
     setIsFormModalOpen(true);
   };
 
+  // Open delete modal
   const handleDeleteClick = (clienteId?: number) => {
     if (clienteId) {
       setSelectedClientes(new Set([clienteId]));
@@ -165,10 +183,11 @@ export const CNDMonitoramento: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
+  // Get selected cliente names for delete modal
   const getSelectedClienteNames = () => {
     return filteredClientes
       .filter(c => selectedClientes.has(c.id))
-      .map(c => `${c.empresa.nomeEmpresa} (${c.cnpj})`);
+      .map(c => c.nome);
   };
 
   return (
@@ -176,11 +195,17 @@ export const CNDMonitoramento: React.FC = () => {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header Section */}
         <div className="mb-8">
+          {/* Company Logo - Responsive */}
           <div className="mb-6 text-center">
             <div className="inline-block">
-              <img src="/lovable-uploads/81771d1f-07c7-41c6-aa45-297eeb71b860.png" alt="Logo da Empresa" className="h-16 w-auto md:h-20 lg:h-24 mx-auto mb-4 object-contain" />
+              <img
+                src="/lovable-uploads/81771d1f-07c7-41c6-aa45-297eeb71b860.png"
+                alt="Logo da Empresa"
+                className="h-16 w-auto md:h-20 lg:h-24 mx-auto mb-4 object-contain"
+              />
             </div>
           </div>
+
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-primary mb-2 flex items-center justify-center">
               <FileText className="w-8 h-8 mr-3" />
@@ -203,25 +228,46 @@ export const CNDMonitoramento: React.FC = () => {
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">Nome da Empresa</label>
-                <Input placeholder="Buscar por nome da empresa..." value={searchEmpresa} onChange={(e) => setSearchEmpresa(e.target.value)} />
+                <label className="text-sm font-medium text-primary">Nome do Contribuinte</label>
+                <Input
+                  placeholder="Buscar por nome..."
+                  value={searchNome}
+                  onChange={(e) => setSearchNome(e.target.value)}
+                  className="focus:ring-primary transition-all"
+                />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">CNPJ do Cliente</label>
-                <Input placeholder="Buscar por CNPJ do cliente..." value={searchCNPJ} onChange={(e) => setSearchCNPJ(e.target.value)} />
+                <label className="text-sm font-medium text-primary">CNPJ</label>
+                <Input
+                  placeholder="Buscar por CNPJ..."
+                  value={searchCNPJ}
+                  onChange={(e) => setSearchCNPJ(e.target.value)}
+                  className="focus:ring-primary transition-all"
+                />
               </div>
               <div className="flex items-end">
-                <Button onClick={() => { setEditingCliente(null); setIsFormModalOpen(true); }} className="w-full bg-primary hover:bg-cnd-blue-medium transition-all shadow-md">
+                <Button
+                  onClick={() => setIsFormModalOpen(true)}
+                  className="w-full bg-primary hover:bg-cnd-blue-medium transition-all shadow-md"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Cadastrar Novo Cliente
                 </Button>
               </div>
             </div>
             
+            {/* Bulk Actions */}
             {selectedClientes.size > 0 && (
               <div className="flex items-center justify-between bg-primary/5 rounded-lg p-3">
-                <span className="text-sm text-primary font-medium">{selectedClientes.size} cliente(s) selecionado(s)</span>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteClick()} className="transition-all shadow-sm">
+                <span className="text-sm text-primary font-medium">
+                  {selectedClientes.size} cliente(s) selecionado(s)
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteClick()}
+                  className="transition-all shadow-sm"
+                >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Excluir Selecionados
                 </Button>
@@ -233,30 +279,36 @@ export const CNDMonitoramento: React.FC = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="shadow-md border-primary/10">
-            <CardContent className="p-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total de Clientes</p>
-                <p className="text-3xl font-bold text-primary">{clientes.length}</p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-primary">{clientes.length}</p>
+                </div>
+                <Users className="w-8 h-8 text-cnd-blue-medium" />
               </div>
-              <Users className="w-8 h-8 text-cnd-blue-medium" />
             </CardContent>
           </Card>
           <Card className="shadow-md border-primary/10">
-            <CardContent className="p-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Clientes Filtrados</p>
-                <p className="text-3xl font-bold text-primary">{filteredClientes.length}</p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Clientes Filtrados</p>
+                  <p className="text-3xl font-bold text-primary">{filteredClientes.length}</p>
+                </div>
+                <Search className="w-8 h-8 text-cnd-blue-medium" />
               </div>
-              <Search className="w-8 h-8 text-cnd-blue-medium" />
             </CardContent>
           </Card>
           <Card className="shadow-md border-primary/10">
-            <CardContent className="p-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Selecionados</p>
-                <p className="text-3xl font-bold text-primary">{selectedClientes.size}</p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Selecionados</p>
+                  <p className="text-3xl font-bold text-primary">{selectedClientes.size}</p>
+                </div>
+                <Checkbox className="w-8 h-8 border-primary" />
               </div>
-              <Checkbox className="w-8 h-8 border-primary" />
             </CardContent>
           </Card>
         </div>
@@ -265,8 +317,13 @@ export const CNDMonitoramento: React.FC = () => {
         <Card className="shadow-lg border-primary/10">
           <CardHeader className="bg-gradient-to-r from-primary/5 to-cnd-blue-medium/5">
             <CardTitle className="text-primary flex items-center justify-between">
-              <span className="flex items-center"><Users className="w-5 h-5 mr-2" /> Lista de Clientes</span>
-              <Badge variant="secondary" className="bg-primary/10 text-primary">{filteredClientes.length} cliente(s)</Badge>
+              <span className="flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                Lista de Clientes
+              </span>
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                {filteredClientes.length} cliente(s)
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -280,51 +337,100 @@ export const CNDMonitoramento: React.FC = () => {
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-4 w-12"><Checkbox checked={filteredClientes.length > 0 && selectedClientes.size === filteredClientes.length} onCheckedChange={handleSelectAll} /></th>
-                      <th className="text-left p-4 text-primary font-semibold">Nome da Empresa</th>
-                      <th className="text-left p-4 text-primary font-semibold">CNPJ do Cliente</th>
-                      <th className="text-left p-4 text-primary font-semibold">Status</th>
-                      <th className="text-left p-4 text-primary font-semibold">Tipos de CND</th>
+                      <th className="text-left p-4 w-12">
+                        <Checkbox
+                          checked={filteredClientes.length > 0 && selectedClientes.size === filteredClientes.length}
+                          onCheckedChange={handleSelectAll}
+                          className="border-primary"
+                        />
+                      </th>
+                      <th className="text-left p-4 text-primary font-semibold">Nome</th>
+                      <th className="text-left p-4 text-primary font-semibold">E-mail</th>
+                      <th className="text-left p-4 text-primary font-semibold">Telefone</th>
+                      <th className="text-left p-4 text-primary font-semibold">CNPJ</th>
                       <th className="text-left p-4 text-primary font-semibold">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredClientes.map(cliente => (
-                      <tr key={cliente.id} className={`border-b transition-colors hover:bg-primary/5 ${selectedClientes.has(cliente.id) ? 'bg-primary/10' : ''}`}>
-                        <td className="p-4"><Checkbox checked={selectedClientes.has(cliente.id)} onCheckedChange={(checked) => handleClienteSelect(cliente.id, !!checked)} /></td>
+                    {filteredClientes.map((cliente, index) => (
+                      <tr
+                        key={cliente.id}
+                        className={`border-b transition-colors hover:bg-primary/2 ${
+                          selectedClientes.has(cliente.id) ? 'bg-primary/5' : ''
+                        }`}
+                      >
+                        <td className="p-4">
+                          <Checkbox
+                            checked={selectedClientes.has(cliente.id)}
+                            onCheckedChange={(checked) => handleClienteSelect(cliente.id, checked as boolean)}
+                            className="border-primary"
+                          />
+                        </td>
                         <td className="p-4">
                           <div className="flex items-center">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mr-3"><Building2 className="w-4 h-4 text-primary"/></div>
-                            <span className="font-medium text-foreground">{cliente.empresa.nomeEmpresa}</span>
+                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mr-3">
+                              <span className="text-xs font-bold text-primary">
+                                {cliente.nome.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="font-medium text-foreground">{cliente.nome}</span>
                           </div>
                         </td>
-                        <td className="p-4"><Badge variant="outline">{cliente.cnpj}</Badge></td>
                         <td className="p-4">
-                          <Badge variant={cliente.statusCliente.toLowerCase() === 'ativo' ? 'default' : 'secondary'}>
-                            {cliente.statusCliente.charAt(0).toUpperCase() + cliente.statusCliente.slice(1)}
-                          </Badge>
+                          <div className="flex items-center text-muted-foreground">
+                            <Mail className="w-4 h-4 mr-2" />
+                            {cliente.email}
+                          </div>
                         </td>
                         <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            {cliente.nacional && <Badge variant="outline" className="flex items-center"><CheckCircle className="w-3 h-3 mr-1 text-green-500"/>N</Badge>}
-                            {cliente.municipal && <Badge variant="outline" className="flex items-center"><CheckCircle className="w-3 h-3 mr-1 text-green-500"/>M</Badge>}
-                            {cliente.estadual && <Badge variant="outline" className="flex items-center"><CheckCircle className="w-3 h-3 mr-1 text-green-500"/>E</Badge>}
+                          <div className="flex items-center text-muted-foreground">
+                            <Phone className="w-4 h-4 mr-2" />
+                            {cliente.telefone}
                           </div>
+                        </td>
+                        <td className="p-4">
+                          {cliente.cnpj ? (
+                            <Badge variant="outline" className="text-xs">
+                              {cliente.cnpj}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
                         </td>
                         <td className="p-4">
                           <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(cliente)}><Edit className="w-4 h-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDeleteClick(cliente.id)}><Trash2 className="w-4 h-4" /></Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(cliente)}
+                              className="hover:bg-primary hover:text-white transition-all"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteClick(cliente.id)}
+                              className="hover:bg-destructive hover:text-white transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+
                 {filteredClientes.length === 0 && !loading && (
                   <div className="text-center py-12">
                     <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">{clientes.length === 0 ? 'Nenhum cliente cadastrado ainda.' : 'Nenhum cliente encontrado com os filtros aplicados.'}</p>
+                    <p className="text-muted-foreground">
+                      {clientes.length === 0
+                        ? 'Nenhum cliente cadastrado ainda.'
+                        : 'Nenhum cliente encontrado com os filtros aplicados.'
+                      }
+                    </p>
                   </div>
                 )}
               </div>
@@ -335,10 +441,15 @@ export const CNDMonitoramento: React.FC = () => {
         {/* Modals */}
         <ClienteFormModal
           isOpen={isFormModalOpen}
-          onClose={() => { setIsFormModalOpen(false); setEditingCliente(null); }}
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setEditingCliente(null);
+          }}
           onSubmit={handleFormSubmit}
           cliente={editingCliente}
           isLoading={formLoading}
+          lastEmpresaId={lastEmpresaId}
+          setLastEmpresaId={setLastEmpresaId}
         />
 
         <DeleteConfirmModal

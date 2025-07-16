@@ -47,9 +47,9 @@ class ClienteService {
     });
   }
 
-  // PUT /clientes/{clienteId} - Update existing cliente
-  async updateCliente(clienteId: number, cliente: UpdateClienteDto): Promise<Cliente> {
-    return this.fetchWithError(`${BASE_URL}/clientes/${clienteId}`, {
+  // PUT /clientes/{idEmpresa} - Update existing cliente
+  async updateCliente(idEmpresa: string, cliente: UpdateClienteDto): Promise<Cliente> {
+    return this.fetchWithError(`${BASE_URL}/clientes/${idEmpresa}`, {
       method: 'PUT',
       body: JSON.stringify(cliente),
     });
