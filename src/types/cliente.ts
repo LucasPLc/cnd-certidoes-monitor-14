@@ -1,14 +1,25 @@
 // Types for Cliente entity - CND System
-export interface Cliente {
-  id: number;
-  nome: string;
-  email: string;
-  telefone: string;
-  cnpj?: string; // Optional field as mentioned in requirements
-  createdAt?: string;
-  updatedAt?: string;
+
+// Interface para a entidade Empresa, conforme esperado pela API
+export interface Empresa {
+  idEmpresa: string;
+  nomeEmpresa: string;
+  cnpj: string;
 }
 
+// Interface para a entidade Cliente, conforme retornado pela API
+export interface Cliente {
+  id: number;
+  cnpj: string;
+  periodicidade: number;
+  statusCliente: string;
+  nacional: boolean;
+  municipal: boolean;
+  estadual: boolean;
+  empresa: Empresa;
+}
+
+// DTO para a criação de um novo cliente
 export interface CreateClienteDto {
   cnpj: string;
   periodicidade: number;
@@ -17,21 +28,11 @@ export interface CreateClienteDto {
   municipal: boolean;
   estadual: boolean;
   empresa: {
+    idEmpresa: string;
     nomeEmpresa: string;
     cnpj: string;
   };
 }
 
-export interface UpdateClienteDto extends CreateClienteDto {
-  id: number;
-}
-
-// API Response types
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-}
-
-export interface ClienteListResponse extends ApiResponse<Cliente[]> {}
-export interface ClienteResponse extends ApiResponse<Cliente> {}
+// DTO para a atualização de um cliente existente
+export interface UpdateClienteDto extends Partial<CreateClienteDto> {}
