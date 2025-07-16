@@ -44,17 +44,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     if (isOpen) {
       if (cliente) {
         setFormData({
-          cnpj: cliente.cnpj,
-          periodicidade: cliente.periodicidade,
-          statusCliente: cliente.statusCliente,
-          nacional: cliente.nacional,
-          municipal: cliente.municipal,
-          estadual: cliente.estadual,
-          empresa: {
-            idEmpresa: cliente.empresa.idEmpresa,
-            nomeEmpresa: cliente.empresa.nomeEmpresa,
-            cnpj: cliente.empresa.cnpj,
-          },
+          ...cliente, // Isso inclui o ID e outros campos
         });
       } else {
         setFormData(initialFormData);
