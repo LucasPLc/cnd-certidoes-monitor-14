@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save, X } from 'lucide-react';
 import { Cliente, CreateClienteDto } from '@/types/cliente';
 
@@ -13,9 +14,21 @@ interface ClienteFormModalProps {
   onSubmit: (cliente: CreateClienteDto) => Promise<void>;
   cliente?: Cliente | null;
   isLoading?: boolean;
-  lastEmpresaId: number;
-  setLastEmpresaId: React.Dispatch<React.SetStateAction<number>>;
 }
+
+const initialFormData: CreateClienteDto = {
+  cnpj: '',
+  periodicidade: 30,
+  statusCliente: 'ativo',
+  nacional: true,
+  municipal: false,
+  estadual: false,
+  empresa: {
+    idEmpresa: '',
+    nomeEmpresa: '',
+    cnpj: ''
+  }
+};
 
 export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   isOpen,
@@ -23,90 +36,67 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   onSubmit,
   cliente,
   isLoading = false,
-  lastEmpresaId,
-  setLastEmpresaId,
 }) => {
-  const [formData, setFormData] = useState<CreateClienteDto>({
-    nome: '',
-    email: '',
-    telefone: '',
-    cnpj: '',
-    periodicidade: 30,
-    statusCliente: 'Ativo',
-    nacional: true,
-    municipal: false,
-    estadual: false,
-    empresa: {
-      nomeEmpresa: '',
-      cnpj: ''
-    }
-  });
-
+  const [formData, setFormData] = useState<CreateClienteDto>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reset form when modal opens/closes or cliente changes
   useEffect(() => {
-    if (cliente) {
-      setFormData({
-        ...cliente,
-        empresa: cliente.empresa || { nomeEmpresa: '', cnpj: '' }
-      });
-    } else {
-      setFormData({
-        nome: '',
-        email: '',
-        telefone: '',
-        cnpj: '',
-        periodicidade: 30,
-        statusCliente: 'Ativo',
-        nacional: true,
-        municipal: false,
-        estadual: false,
-        empresa: {
-          nomeEmpresa: '',
-          cnpj: ''
-        }
-      });
+    if (isOpen) {
+      if (cliente) {
+        setFormData({
+          cnpj: cliente.cnpj,
+          periodicidade: cliente.periodicidade,
+          statusCliente: cliente.statusCliente,
+          nacional: cliente.nacional,
+          municipal: cliente.municipal,
+          estadual: cliente.estadual,
+          empresa: {
+            idEmpresa: cliente.empresa.idEmpresa,
+            nomeEmpresa: cliente.empresa.nomeEmpresa,
+            cnpj: cliente.empresa.cnpj,
+          },
+        });
+      } else {
+        setFormData(initialFormData);
+      }
+      setErrors({});
     }
-    setErrors({});
   }, [cliente, isOpen]);
+
+  const formatCNPJ = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    let formatted = numbers;
+    if (numbers.length > 2) formatted = `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
+    if (numbers.length > 5) formatted = `${formatted.slice(0, 6)}.${numbers.slice(5)}`;
+    if (numbers.length > 8) formatted = `${formatted.slice(0, 10)}/${numbers.slice(8)}`;
+    if (numbers.length > 12) formatted = `${formatted.slice(0, 15)}-${numbers.slice(12)}`;
+    return formatted.slice(0, 18);
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const cnpjRegex = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
 
-    if (!formData.nome.trim()) {
-      newErrors.nome = 'Nome é obrigatório';
+    if (!formData.cnpj.trim() || !cnpjRegex.test(formData.cnpj)) {
+      newErrors.cnpj = 'CNPJ do Cliente inválido. Use o formato XX.XXX.XXX/XXXX-XX.';
     }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'E-mail é obrigatório';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'E-mail inválido';
+    if (!formData.empresa.cnpj.trim() || !cnpjRegex.test(formData.empresa.cnpj)) {
+      newErrors['empresa.cnpj'] = 'CNPJ da Empresa inválido. Use o formato XX.XXX.XXX/XXXX-XX.';
     }
-
-    if (!formData.telefone.trim()) {
-      newErrors.telefone = 'Telefone é obrigatório';
+    if (!formData.empresa.idEmpresa.trim()) {
+      newErrors['empresa.idEmpresa'] = 'ID da Empresa é obrigatório.';
     }
-
+    if (formData.empresa.idEmpresa.length > 6) {
+        newErrors['empresa.idEmpresa'] = 'ID da Empresa não pode ter mais de 6 caracteres.';
+    }
     if (!formData.empresa.nomeEmpresa.trim()) {
-      newErrors['empresa.nomeEmpresa'] = 'Nome da empresa é obrigatório';
+      newErrors['empresa.nomeEmpresa'] = 'Nome da Empresa é obrigatório.';
     }
-
-    if (!formData.empresa.cnpj.trim()) {
-      newErrors['empresa.cnpj'] = 'CNPJ da empresa é obrigatório';
-    } else {
-      const cnpjClean = formData.empresa.cnpj.replace(/\D/g, '');
-      if (cnpjClean.length !== 14) {
-        newErrors['empresa.cnpj'] = 'CNPJ da empresa deve ter 14 dígitos';
-      }
+    if (!formData.periodicidade || formData.periodicidade <= 0) {
+      newErrors.periodicidade = 'Periodicidade deve ser um número positivo.';
     }
-
-    if (!formData.periodicidade) {
-      newErrors.periodicidade = 'Periodicidade é obrigatória';
-    }
-
     if (!formData.statusCliente.trim()) {
-      newErrors.statusCliente = 'Status é obrigatório';
+      newErrors.statusCliente = 'Status do Cliente é obrigatório.';
     }
 
     setErrors(newErrors);
@@ -115,43 +105,25 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
-    const clienteParaEnviar = {
-      cnpj: formData.empresa.cnpj,
-      periodicidade: formData.periodicidade,
-      statusCliente: formData.statusCliente,
-      nacional: formData.nacional,
-      municipal: formData.municipal,
-      estadual: formData.estadual,
-      empresa: {
-        idEmpresa: cliente && cliente.empresa ? cliente.empresa.idEmpresa : lastEmpresaId + 1,
-        nomeEmpresa: formData.empresa.nomeEmpresa
-      }
-    };
-
     try {
-      await onSubmit(clienteParaEnviar);
-      if (!cliente) {
-        setLastEmpresaId(lastEmpresaId + 1);
-      }
+      await onSubmit(formData);
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
     }
   };
 
-  const handleInputChange = (field: keyof CreateClienteDto | 'empresa.nomeEmpresa' | 'empresa.cnpj', value: string | boolean) => {
-    if (field.startsWith('empresa.')) {
-      const empresaField = field.split('.')[1] as keyof CreateClienteDto['empresa'];
+  const handleInputChange = (field: string, value: string | number | boolean) => {
+    const keys = field.split('.');
+    if (keys.length > 1) {
       setFormData(prev => ({
         ...prev,
-        empresa: {
-          ...prev.empresa,
-          [empresaField]: value
+        [keys[0]]: {
+          ...prev[keys[0] as keyof typeof prev],
+          [keys[1]]: value
         }
       }));
     } else {
@@ -159,29 +131,17 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     }
 
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
-  };
-
-  const formatCNPJ = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 14) {
-      return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-    return value;
-  };
-
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 11) {
-      return numbers.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
-    }
-    return value;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-primary">
             {cliente ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}
@@ -189,187 +149,71 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Cliente CNPJ */}
           <div className="space-y-2">
-            <Label htmlFor="nome" className="text-primary font-medium">
-              Nome do Contribuinte *
-            </Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => handleInputChange('nome', e.target.value)}
-              placeholder="Digite o nome completo"
-              className={`transition-all ${errors.nome ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            />
-            {errors.nome && (
-              <span className="text-xs text-destructive">{errors.nome}</span>
-            )}
+            <Label htmlFor="cnpj" className="text-primary font-medium">CNPJ do Cliente *</Label>
+            <Input id="cnpj" value={formData.cnpj} onChange={(e) => handleInputChange('cnpj', formatCNPJ(e.target.value))} placeholder="XX.XXX.XXX/XXXX-XX" className={errors.cnpj ? 'border-destructive' : ''} disabled={isLoading} />
+            {errors.cnpj && <span className="text-xs text-destructive">{errors.cnpj}</span>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-primary font-medium">
-              E-mail *
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="exemplo@empresa.com"
-              className={`transition-all ${errors.email ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            />
-            {errors.email && (
-              <span className="text-xs text-destructive">{errors.email}</span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="telefone" className="text-primary font-medium">
-              Telefone *
-            </Label>
-            <Input
-              id="telefone"
-              value={formData.telefone}
-              onChange={(e) => handleInputChange('telefone', formatPhone(e.target.value))}
-              placeholder="(11) 99999-9999"
-              className={`transition-all ${errors.telefone ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            />
-            {errors.telefone && (
-              <span className="text-xs text-destructive">{errors.telefone}</span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="empresa.nomeEmpresa" className="text-primary font-medium">
-              Nome da Empresa *
-            </Label>
-            <Input
-              id="empresa.nomeEmpresa"
-              value={formData.empresa.nomeEmpresa}
-              onChange={(e) => handleInputChange('empresa.nomeEmpresa', e.target.value)}
-              placeholder="Digite o nome da empresa"
-              className={`transition-all ${errors['empresa.nomeEmpresa'] ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            />
-            {errors['empresa.nomeEmpresa'] && (
-              <span className="text-xs text-destructive">{errors['empresa.nomeEmpresa']}</span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="empresa.cnpj" className="text-primary font-medium">
-              CNPJ da Empresa *
-            </Label>
-            <Input
-              id="empresa.cnpj"
-              value={formData.empresa.cnpj}
-              onChange={(e) => handleInputChange('empresa.cnpj', formatCNPJ(e.target.value))}
-              placeholder="00.000.000/0000-00"
-              className={`transition-all ${errors['empresa.cnpj'] ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            />
-            {errors['empresa.cnpj'] && (
-              <span className="text-xs text-destructive">{errors['empresa.cnpj']}</span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="periodicidade" className="text-primary font-medium">
-              Periodicidade (dias) *
-            </Label>
-            <Input
-              id="periodicidade"
-              type="number"
-              value={formData.periodicidade}
-              onChange={(e) => handleInputChange('periodicidade', e.target.value)}
-              placeholder="30"
-              className={`transition-all ${errors.periodicidade ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            />
-            {errors.periodicidade && (
-              <span className="text-xs text-destructive">{errors.periodicidade}</span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="statusCliente" className="text-primary font-medium">
-              Status *
-            </Label>
-            <select
-              id="statusCliente"
-              value={formData.statusCliente}
-              onChange={(e) => handleInputChange('statusCliente', e.target.value)}
-              className={`transition-all w-full p-2 border rounded ${errors.statusCliente ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary'}`}
-              disabled={isLoading}
-            >
-              <option value="Ativo">Ativo</option>
-              <option value="Inativo">Inativo</option>
-              <option value="Pendente">Pendente</option>
-            </select>
-            {errors.statusCliente && (
-              <span className="text-xs text-destructive">{errors.statusCliente}</span>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="nacional"
-                checked={formData.nacional}
-                onChange={(e) => handleInputChange('nacional', e.target.checked)}
-                className="h-4 w-4"
-                disabled={isLoading}
-              />
-              <Label htmlFor="nacional">Nacional</Label>
+          {/* Empresa Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Label htmlFor="empresa.idEmpresa" className="text-primary font-medium">ID da Empresa *</Label>
+                <Input id="empresa.idEmpresa" value={formData.empresa.idEmpresa} onChange={(e) => handleInputChange('empresa.idEmpresa', e.target.value)} placeholder="Até 6 caracteres" className={errors['empresa.idEmpresa'] ? 'border-destructive' : ''} disabled={isLoading} maxLength={6}/>
+                {errors['empresa.idEmpresa'] && <span className="text-xs text-destructive">{errors['empresa.idEmpresa']}</span>}
             </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="municipal"
-                checked={formData.municipal}
-                onChange={(e) => handleInputChange('municipal', e.target.checked)}
-                className="h-4 w-4"
-                disabled={isLoading}
-              />
-              <Label htmlFor="municipal">Municipal</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="estadual"
-                checked={formData.estadual}
-                onChange={(e) => handleInputChange('estadual', e.target.checked)}
-                className="h-4 w-4"
-                disabled={isLoading}
-              />
-              <Label htmlFor="estadual">Estadual</Label>
+            <div className="space-y-2">
+              <Label htmlFor="empresa.cnpj" className="text-primary font-medium">CNPJ da Empresa *</Label>
+              <Input id="empresa.cnpj" value={formData.empresa.cnpj} onChange={(e) => handleInputChange('empresa.cnpj', formatCNPJ(e.target.value))} placeholder="XX.XXX.XXX/XXXX-XX" className={errors['empresa.cnpj'] ? 'border-destructive' : ''} disabled={isLoading} />
+              {errors['empresa.cnpj'] && <span className="text-xs text-destructive">{errors['empresa.cnpj']}</span>}
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="empresa.nomeEmpresa" className="text-primary font-medium">Nome da Empresa *</Label>
+            <Input id="empresa.nomeEmpresa" value={formData.empresa.nomeEmpresa} onChange={(e) => handleInputChange('empresa.nomeEmpresa', e.target.value)} placeholder="Nome da Empresa" className={errors['empresa.nomeEmpresa'] ? 'border-destructive' : ''} disabled={isLoading} />
+            {errors['empresa.nomeEmpresa'] && <span className="text-xs text-destructive">{errors['empresa.nomeEmpresa']}</span>}
+          </div>
+
+          {/* Other Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="periodicidade" className="text-primary font-medium">Periodicidade (dias) *</Label>
+              <Input id="periodicidade" type="number" value={formData.periodicidade} onChange={(e) => handleInputChange('periodicidade', parseInt(e.target.value, 10) || 0)} placeholder="30" className={errors.periodicidade ? 'border-destructive' : ''} disabled={isLoading} />
+              {errors.periodicidade && <span className="text-xs text-destructive">{errors.periodicidade}</span>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="statusCliente" className="text-primary font-medium">Status do Cliente *</Label>
+              <Input id="statusCliente" value={formData.statusCliente} onChange={(e) => handleInputChange('statusCliente', e.target.value)} placeholder="ativo" className={errors.statusCliente ? 'border-destructive' : ''} disabled={isLoading} />
+              {errors.statusCliente && <span className="text-xs text-destructive">{errors.statusCliente}</span>}
+            </div>
+          </div>
+
+          {/* CND Types */}
+          <div className="space-y-2">
+            <Label className="text-primary font-medium">Tipos de CND *</Label>
+            <div className="flex items-center space-x-4 pt-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox id="nacional" checked={formData.nacional} onCheckedChange={(checked) => handleInputChange('nacional', !!checked)} disabled={isLoading} />
+                <Label htmlFor="nacional">Nacional</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="municipal" checked={formData.municipal} onCheckedChange={(checked) => handleInputChange('municipal', !!checked)} disabled={isLoading} />
+                <Label htmlFor="municipal">Municipal</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="estadual" checked={formData.estadual} onCheckedChange={(checked) => handleInputChange('estadual', !!checked)} disabled={isLoading} />
+                <Label htmlFor="estadual">Estadual</Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
           <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
-              className="transition-all hover:bg-muted"
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-primary hover:bg-cnd-blue-medium transition-all"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}> <X className="w-4 h-4 mr-2" /> Cancelar </Button>
+            <Button type="submit" disabled={isLoading} className="bg-primary hover:bg-cnd-blue-medium">
+              {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               {cliente ? 'Atualizar' : 'Cadastrar'}
             </Button>
           </div>
